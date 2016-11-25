@@ -22,77 +22,87 @@ namespace aisdi {
 
         class Iterator;
 
+        class TreeNode;
+
         using iterator = Iterator;
         using const_iterator = ConstIterator;
 
-        TreeMap() { }
+        TreeMap() : mRoot(nullptr), mCount(0) { }
 
-        TreeMap(std::initializer_list<value_type> list) {
-            (void) list; // disables "unused argument" warning, can be removed when method is implemented.
-            throw std::runtime_error("TODO");
+        TreeMap(std::initializer_list<value_type> list) : TreeMap() {
+            for (auto&& item : list)
+                insert(item);
         }
 
-        TreeMap(const TreeMap& other) {
-            (void) other;
-            throw std::runtime_error("TODO");
+        TreeMap(const TreeMap& other) : TreeMap() {
+            for (auto&& item : other)
+                insert(item);
         }
 
-        TreeMap(TreeMap&& other) {
-            (void) other;
-            throw std::runtime_error("TODO");
+        TreeMap(TreeMap&& other) : TreeMap() {
+            std::swap(mRoot, other.mRoot);
+            std::swap(mCount, other.mCount);
         }
 
         TreeMap& operator=(const TreeMap& other) {
-            (void) other;
-            throw std::runtime_error("TODO");
+            clear();
+            for (auto&& item : other)
+                insert(item);
+            return *this;
         }
 
         TreeMap& operator=(TreeMap&& other) {
-            (void) other;
-            throw std::runtime_error("TODO");
+            clear();
+            std::swap(mRoot, other.mRoot);
+            std::swap(mCount, other.mCount);
+            return *this;
         }
 
         bool isEmpty() const {
-            throw std::runtime_error("TODO");
+            return mCount == 0;
         }
 
         mapped_type& operator[](const key_type& key) {
-            (void) key;
-            throw std::runtime_error("TODO");
+            TreeNode* node = findNode(key);
+            if (node != nullptr)
+                return node->mPair.second;
+            node = allocate(key);
+            return node->mPair.second;
         }
 
         const mapped_type& valueOf(const key_type& key) const {
-            (void) key;
-            throw std::runtime_error("TODO");
+            TreeNode* node = findNode(key);
+            if (node == nullptr)
+                throw std::out_of_range("Key does not exists");
+            else
+                return node->mPair.second;
         }
 
         mapped_type& valueOf(const key_type& key) {
-            (void) key;
-            throw std::runtime_error("TODO");
+            return const_cast<mapped_type&>(static_cast<const TreeMap<KeyType, ValueType>*>(this)->valueOf(key));
         }
 
         const_iterator find(const key_type& key) const {
-            (void) key;
-            throw std::runtime_error("TODO");
+            TreeNode* node = findNode(key);
+            if (node == nullptr)
+                return end();
+            return Iterator(*this, node);
         }
 
         iterator find(const key_type& key) {
-            (void) key;
-            throw std::runtime_error("TODO");
+            return static_cast<const TreeMap<KeyType, ValueType>*>(this)->find(key);
         }
 
         void remove(const key_type& key) {
-            (void) key;
-            throw std::runtime_error("TODO");
+            removeNode(findNode(key));
         }
 
         void remove(const const_iterator& it) {
-            (void) it;
-            throw std::runtime_error("TODO");
+            removeNode(it.mNode);
         }
 
         size_type getSize() const {
-            throw std::runtime_error("TODO");
+            return mCount;
         }
 
         bool operator==(const TreeMap& other) const {
@@ -105,19 +115,19 @@ namespace aisdi {
         }
 
         iterator begin() {
-            throw std::runtime_error("TODO");
+            return Iterator(*this, mRoot);
         }
 
         iterator end() {
-            throw std::runtime_error("TODO");
+            return Iterator(*this, nullptr);
         }
 
         const_iterator cbegin() const {
-            throw std::runtime_error("TODO");
+            return ConstIterator(*this, mRoot);
         }
 
         const_iterator cend() const {
-            throw std::runtime_error("TODO");
+            return ConstIterator(*this, nullptr);
         }
 
         const_iterator begin() const {
@@ -127,7 +137,62 @@ namespace aisdi {
         const_iterator end() const {
             return cend();
         }
+
+    private:
+        TreeNode* mRoot;
+        size_type mCount;
+
+        iterator insert(value_type pValue) {
+            TreeNode* node = allocate(pValue.first);
+            node->mPair.second = pValue.second;
+            return Iterator(*this, node);
+        };
+
+        TreeNode* allocate(key_type pKey) {
+            (void) pKey;
+            ++mCount;
+            return new TreeNode;
+        };
+
+        void removeNode(TreeNode* pNode) {
+            (void)pNode;
+        }
+
+        TreeNode* rotateRight(TreeNode* pRoot) {
+            return pRoot;
+        }
+
+        TreeNode* rotateLeft(TreeNode* pRoot) {
+            return pRoot;
+        }
+
+        void clear() {
+        }
+
+        TreeNode* findNode(const key_type& pKey) const {
+            TreeNode* root = mRoot;
+            while (root != nullptr && root->mPair.first != pKey)
+                if (root->mPair.first < pKey)
+                    root = root->mRight;
+                else
+                    root = root->mLeft;
+            return root;
+        }
+
     };
+
+    template<typename KeyType, typename ValueType>
+    struct TreeMap<KeyType, ValueType>::TreeNode {
+        enum class TreeColor {
+            BLACK, RED
+        };
+        value_type mPair;
+        TreeColor mColor;
+        TreeNode* mParent;
+        TreeNode* mLeft;
+        TreeNode* mRight;
+    };
+
 
     template<typename KeyType, typename ValueType>
     class TreeMap<KeyType, ValueType>::ConstIterator {
@@ -137,19 +202,20 @@ namespace aisdi {
         using value_type = typename TreeMap::value_type;
         using pointer = const typename TreeMap::value_type*;
 
-        explicit ConstIterator() { }
+        friend class TreeMap;
 
-        ConstIterator(const ConstIterator& other) {
-            (void) other;
-            throw std::runtime_error("TODO");
-        }
+        explicit ConstIterator(const TreeMap& pMap, TreeNode* pNode) : mMap(pMap), mNode(pNode) { }
+
+        ConstIterator(const ConstIterator& other) : mMap(other.mMap), mNode(other.mNode) { }
 
         ConstIterator& operator++() {
             throw std::runtime_error("TODO");
         }
 
         ConstIterator operator++(int) {
-            throw std::runtime_error("TODO");
+            ConstIterator old(*this);
+            operator++();
+            return old;
         }
 
         ConstIterator& operator--() {
@@ -157,11 +223,16 @@ namespace aisdi {
         }
 
         ConstIterator operator--(int) {
-            throw std::runtime_error("TODO");
+            ConstIterator old(*this);
+            operator--();
+            return old;
         }
 
         reference operator*() const {
-            throw std::runtime_error("TODO");
+            if(mNode == nullptr)
+                throw std::out_of_range("Derefferencing end iterator");
+            return mNode->mPair;
+
         }
 
         pointer operator->() const {
@@ -169,13 +240,17 @@ namespace aisdi {
         }
 
         bool operator==(const ConstIterator& other) const {
-            (void) other;
-            throw std::runtime_error("TODO");
+            return mNode == other.mNode;
         }
 
         bool operator!=(const ConstIterator& other) const {
             return !(*this == other);
         }
+
+    private:
+        const TreeMap& mMap;
+        TreeNode* mNode;
+
     };
 
     template<typename KeyType, typename ValueType>
@@ -184,7 +259,7 @@ namespace aisdi {
         using reference = typename TreeMap::reference;
         using pointer = typename TreeMap::value_type*;
 
-        explicit Iterator() { }
+        explicit Iterator(const TreeMap& pMap, TreeNode* pNode) : ConstIterator(pMap, pNode) {}
 
         Iterator(const ConstIterator& other)
                 : ConstIterator(other) { }
