@@ -29,7 +29,7 @@ namespace aisdi {
         using iterator = Iterator;
         using const_iterator = ConstIterator;
 
-        HashMap() : mBucketCount(200), mCount(0) {
+        HashMap() : mBucketCount(1000), mCount(0) {
             mBuckets = new BucketNode* [mBucketCount];
             for (size_type i = 0; i < mBucketCount; i++)
                 mBuckets[i] = nullptr;
@@ -55,6 +55,11 @@ namespace aisdi {
             std::swap(mBuckets, other.mBuckets);
             std::swap(mBucketCount, other.mBucketCount);
             std::swap(mHasher, other.mHasher);
+        }
+
+        ~HashMap(){
+            clear();
+            delete[] mBuckets;
         }
 
         HashMap& operator=(const HashMap& other) {
