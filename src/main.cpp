@@ -1,24 +1,24 @@
 #include <cstddef>
-#include <cstdlib>
 #include <string>
+#include <random>
 
-#include "TreeMap.h"
+#include "HashMap.h"
+#include "Benchmark.h"
 
-namespace {
 
-    template<typename K, typename V>
-    using Map = aisdi::TreeMap<K, V>;
-
-    void perfomTest() {
-        Map<int, std::string> map;
-        map[1] = "TODO";
+void randomInsert(int n) {
+    aisdi::HashMap<int, int> map;
+    std::mt19937 device;
+    std::uniform_int_distribution<int> distribution();
+    for(int i = 0; i < n; ++i) {
+        map[i] = i;
     }
+}
 
-} // namespace
 
 int main(int argc, char** argv) {
-    const std::size_t repeatCount = argc > 1 ? std::atoll(argv[1]) : 10000;
-    for (std::size_t i = 0; i < repeatCount; ++i)
-        perfomTest();
-    return 0;
+    (void)argc;
+    (void)argv;
+
+    Benchmark::run(randomInsert, "Random insert", {1000, 2000, 5000, 8000, 10000, 20000, 50000, 80000, 100000, 200000, 500000, 800000, 1000000});
 }
