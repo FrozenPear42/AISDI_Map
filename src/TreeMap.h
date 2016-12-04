@@ -45,14 +45,14 @@ namespace aisdi {
         }
 
         TreeMap& operator=(const TreeMap& other) {
-            clear();
+            clear(mRoot);
             for (auto&& item : other)
                 insert(item);
             return *this;
         }
 
         TreeMap& operator=(TreeMap&& other) {
-            clear();
+            clear(mRoot);
             std::swap(mRoot, other.mRoot);
             std::swap(mCount, other.mCount);
             return *this;
@@ -86,7 +86,7 @@ namespace aisdi {
             TreeNode* node = findNode(key);
             if (node == nullptr)
                 return end();
-            return Iterator(*this, node);
+            return Iterator(*this, node->mParent, node);
         }
 
         iterator find(const key_type& key) {
@@ -106,8 +106,16 @@ namespace aisdi {
         }
 
         bool operator==(const TreeMap& other) const {
-            (void) other;
-            throw std::runtime_error("TODO");
+            if (mCount != other.mCount)
+                return false;
+
+            for (auto&& item : other) {
+                TreeNode* node = findNode(item.first);
+                if (node == nullptr || node->mPair.second != item.second)
+                    return false;
+            }
+
+            return true;
         }
 
         bool operator!=(const TreeMap& other) const {
@@ -115,19 +123,19 @@ namespace aisdi {
         }
 
         iterator begin() {
-            return Iterator(*this, mRoot);
+            return Iterator(*this, nullptr, mostLeft());
         }
 
         iterator end() {
-            return Iterator(*this, nullptr);
+            return Iterator(*this, mostRight(), nullptr);
         }
 
         const_iterator cbegin() const {
-            return ConstIterator(*this, mRoot);
+            return ConstIterator(*this, nullptr, mostLeft());
         }
 
         const_iterator cend() const {
-            return ConstIterator(*this, nullptr);
+            return ConstIterator(*this, mostRight(), nullptr);
         }
 
         const_iterator begin() const {
@@ -145,28 +153,43 @@ namespace aisdi {
         iterator insert(value_type pValue) {
             TreeNode* node = allocate(pValue.first);
             node->mPair.second = pValue.second;
-            return Iterator(*this, node);
+            return Iterator(*this, node->mParent, node);
         };
 
         TreeNode* allocate(key_type pKey) {
-            (void) pKey;
+            TreeNode* new_node = new TreeNode(std::make_pair(pKey, ValueType()));
+            TreeNode* node = mRoot;
+            TreeNode* parent;
             ++mCount;
-            return new TreeNode;
+            if (mRoot == nullptr) {
+                mRoot = new_node;
+                return new_node;
+            }
+            while (true) {
+                parent = node;
+
+                if (pKey < node->mPair.first) {
+                    node = node->mLeft;
+                    if (node == nullptr) {
+                        node = parent->mLeft = new_node;
+                        rebalance(parent);
+                        return node;
+                    }
+                } else {
+                    node = node->mRight;
+                    if (node == nullptr) {
+                        node = parent->mRight = new_node;
+                        rebalance(parent);
+                        return node;
+                    }
+                }
+            }
         };
 
         void removeNode(TreeNode* pNode) {
-            (void)pNode;
-        }
+            if (pNode == nullptr)
+                throw std::out_of_range("Removing node that does not exist");
 
-        TreeNode* rotateRight(TreeNode* pRoot) {
-            return pRoot;
-        }
-
-        TreeNode* rotateLeft(TreeNode* pRoot) {
-            return pRoot;
-        }
-
-        void clear() {
         }
 
         TreeNode* findNode(const key_type& pKey) const {
@@ -179,20 +202,154 @@ namespace aisdi {
             return root;
         }
 
+        void clear(TreeNode* pRoot) {
+
+            if (pRoot == nullptr)
+                return;
+
+            clear(pRoot->mLeft);
+            clear(pRoot->mRight);
+
+            if (pRoot->mLeft != nullptr) {
+                --mCount;
+                delete pRoot->mLeft;
+                pRoot->mLeft = nullptr;
+            }
+            if (pRoot->mRight != nullptr) {
+                --mCount;
+                delete pRoot->mRight;
+                pRoot->mRight = nullptr;
+            }
+            if (pRoot == mRoot) {
+                delete mRoot;
+                mRoot = nullptr;
+                --mCount;
+            }
+        }
+
+        TreeNode* mostLeft() const {
+            TreeNode* node = mRoot;
+            if (node == nullptr)
+                return nullptr;
+            while (node->mLeft != nullptr)
+                node = node->mLeft;
+            return node;
+        }
+
+        TreeNode* mostRight() const {
+            TreeNode* node = mRoot;
+            if (node == nullptr)
+                return nullptr;
+            while (node->mRight != nullptr)
+                node = node->mRight;
+            return node;
+        }
+
+        void rebalance(TreeNode* pRoot) {
+            int balance = getHeight(pRoot->mLeft) - getHeight(pRoot->mRight);
+            if (balance == -2) {
+                if (getHeight(pRoot->mLeft->mLeft) >= getHeight(pRoot->mLeft->mRight))
+                    pRoot = rotateRight(pRoot);
+                else
+                    pRoot = rotateLeftRight(pRoot);
+            }
+            else if (balance == 2) {
+                if (getHeight(pRoot->mRight->mRight) >= getHeight(pRoot->mRight->mLeft))
+                    pRoot = rotateLeft(pRoot);
+                else
+                    pRoot = rotateRightLeft(pRoot);
+            }
+
+            if (pRoot->mParent != nullptr)
+                rebalance(pRoot);
+            else
+                mRoot = pRoot;
+        }
+
+        TreeNode* rotateLeft(TreeNode* pRoot) {
+            TreeNode* x = pRoot->mRight;
+            x->mParent = pRoot->mParent;
+            pRoot->mRight = x->mLeft;
+
+            if (pRoot->mRight != nullptr)
+                pRoot->mRight->mParent = pRoot;
+
+            x->mLeft = pRoot;
+            pRoot->mParent = x;
+
+            if (x->mParent != nullptr) {
+                if (x->mParent->mRight == pRoot)
+                    x->mParent->mRight = x;
+                else
+                    x->mParent->mLeft = x;
+            }
+            pRoot->mHeight = std::max(getHeight(pRoot->mLeft), getHeight(pRoot->mRight)) + 1;
+            x->mHeight = std::max(getHeight(x->mLeft), getHeight(x->mRight)) + 1;
+
+            return x;
+        }
+
+
+        TreeNode* rotateRight(TreeNode* pRoot) {
+            TreeNode* x = pRoot->mLeft;
+            x->mParent = pRoot->mParent;
+            pRoot->mLeft = x->mRight;
+
+            if (pRoot->mLeft != nullptr)
+                pRoot->mLeft->mParent = pRoot;
+
+            x->mRight = pRoot;
+            pRoot->mParent = x;
+
+            if (x->mParent != nullptr) {
+                if (x->mParent->mRight == pRoot)
+                    x->mParent->mRight = x;
+                else
+                    x->mParent->mLeft = x;
+            }
+            pRoot->mHeight = std::max(getHeight(pRoot->mLeft), getHeight(pRoot->mRight)) + 1;
+            x->mHeight = std::max(getHeight(x->mLeft), getHeight(x->mRight)) + 1;
+
+            return x;
+        }
+
+        TreeNode* rotateLeftRight(TreeNode* pRoot) {
+            pRoot->mLeft = rotateLeft(pRoot->mLeft);
+            return rotateRight(pRoot);
+        }
+
+        TreeNode* rotateRightLeft(TreeNode* pRoot) {
+            pRoot->mRight = rotateRight(pRoot->mRight);
+            return rotateLeft(pRoot);
+        }
+
+        inline int getHeight(const TreeNode* pRoot) const {
+            if (pRoot != nullptr)
+                return pRoot->mHeight;
+            return 0;
+        }
+
+        inline int getBalance(const TreeNode* pRoot) const {
+            if (pRoot != nullptr)
+                return getHeight(pRoot->mLeft) - getHeight(pRoot->mRight);
+            return 0;
+        }
+
     };
 
     template<typename KeyType, typename ValueType>
     struct TreeMap<KeyType, ValueType>::TreeNode {
-        enum class TreeColor {
-            BLACK, RED
-        };
         value_type mPair;
-        TreeColor mColor;
         TreeNode* mParent;
         TreeNode* mLeft;
         TreeNode* mRight;
-    };
+        int mHeight;
 
+        TreeNode() : mPair(std::make_pair(KeyType(), ValueType())), mParent(nullptr), mLeft(nullptr), mRight(nullptr),
+                     mHeight(1) { }
+
+        TreeNode(value_type pPair) : mPair(pPair), mParent(nullptr), mLeft(nullptr), mRight(nullptr), mHeight(1) { }
+    };
 
     template<typename KeyType, typename ValueType>
     class TreeMap<KeyType, ValueType>::ConstIterator {
@@ -204,12 +361,26 @@ namespace aisdi {
 
         friend class TreeMap;
 
-        explicit ConstIterator(const TreeMap& pMap, TreeNode* pNode) : mMap(pMap), mNode(pNode) { }
+        explicit ConstIterator(const TreeMap& pMap, TreeNode* pPrev, TreeNode* pNode) : mMap(pMap), mPrev(pPrev),
+                                                                                        mNode(pNode) { }
 
-        ConstIterator(const ConstIterator& other) : mMap(other.mMap), mNode(other.mNode) { }
+        ConstIterator(const ConstIterator& other) : ConstIterator(other.mMap, other.mPrev, other.mNode) { }
 
         ConstIterator& operator++() {
-            throw std::runtime_error("TODO");
+            if (mNode == nullptr)
+                throw std::out_of_range("Eh, incrementing end iterator");
+
+            TreeNode* old = mNode;
+            if (mPrev == nullptr)
+                mNode = mNode->mLeft;
+            else if (mPrev == mNode->mParent)
+                mNode = mNode->mLeft;
+            else if (mPrev == mNode->mLeft)
+                mNode = mNode->mRight;
+            else if (mPrev == mNode->mRight)
+                mNode = mNode->mParent;
+            mPrev = old;
+            return *this;
         }
 
         ConstIterator operator++(int) {
@@ -229,7 +400,7 @@ namespace aisdi {
         }
 
         reference operator*() const {
-            if(mNode == nullptr)
+            if (mNode == nullptr)
                 throw std::out_of_range("Derefferencing end iterator");
             return mNode->mPair;
 
@@ -249,8 +420,8 @@ namespace aisdi {
 
     private:
         const TreeMap& mMap;
+        TreeNode* mPrev;
         TreeNode* mNode;
-
     };
 
     template<typename KeyType, typename ValueType>
@@ -259,7 +430,7 @@ namespace aisdi {
         using reference = typename TreeMap::reference;
         using pointer = typename TreeMap::value_type*;
 
-        explicit Iterator(const TreeMap& pMap, TreeNode* pNode) : ConstIterator(pMap, pNode) {}
+        explicit Iterator(const TreeMap& pMap, TreeNode* pPrev, TreeNode* pNode) : ConstIterator(pMap, pPrev, pNode) { }
 
         Iterator(const ConstIterator& other)
                 : ConstIterator(other) { }
