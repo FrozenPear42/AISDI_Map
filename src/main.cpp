@@ -38,5 +38,5 @@ int main(int argc, char** argv) {
                         std::cout << "Done: " << pPair.first << " in " << pPair.second << "\n";
                     }
             */
-    ).exportCSV(std::cout);
+    ).exportCSVFile();
 }

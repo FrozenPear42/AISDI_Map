@@ -6,7 +6,7 @@
 #include <iomanip>
 #include <map>
 #include <list>
-
+#include <fstream>
 
 namespace bm {
     class Benchmark {
@@ -129,6 +129,18 @@ namespace bm {
             for (auto&& bench : mBenchmarks) {
                 bench.exportCSV(pOut);
                 pOut << "\n";
+            }
+            return *this;
+        }
+
+        BenchmarkSuite& exportCSVFile(std::string pName = "") {
+            if (pName == "")
+                pName = mName + ".csv";
+            std::ofstream file(pName.c_str());
+            if (file) {
+                exportCSV(file);
+                file.flush();
+                file.close();
             }
             return *this;
         }

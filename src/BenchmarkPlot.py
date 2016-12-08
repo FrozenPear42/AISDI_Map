@@ -31,7 +31,7 @@ else:
                     results[current_row][1].append(row[1])
 
             plt.title(title)
-            plt.ylabel("Time(ms)")
+            plt.ylabel("Time(s)")
             plt.xlabel("Number of elements")
             for a in results:
                 plt.plot(results[a][0], results[a][1], label=a)
