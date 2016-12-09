@@ -36,7 +36,7 @@ namespace bm {
         };
 
         Benchmark& run() {
-            return run([](std::pair<const int, double>) {});
+            return run([](std::pair<const int, double>, int) {});
         }
 
         template<typename Tt>
@@ -44,13 +44,15 @@ namespace bm {
             using namespace std::chrono;
             time_point<system_clock> start, end;
             duration<double> elapsed;
+            int i = 0;
             for (auto&& item : mResults) {
+                i+= 100;
                 start = system_clock::now();
                 mTestFunc(item.first);
                 end = system_clock::now();
                 elapsed = end - start;
                 item.second = elapsed.count();
-                pCallback(item);
+                pCallback(item, (int)(i/mResults.size()));
             }
             return *this;
         }
@@ -97,8 +99,14 @@ namespace bm {
 
         template<typename Tt>
         BenchmarkSuite& run(Tt pCallback) {
-            for (auto&& item : mBenchmarks)
-                item.run(std::forward<Tt>(pCallback));
+            int i = 0;
+            for (auto&& item : mBenchmarks) {
+                i += 1;
+                item.run([&](std::pair<const int, double> pPair, int pPercent) {
+                    //FIXME: change percentage calculation
+                    pCallback(pPair, (int) ((pPercent * i) / mBenchmarks.size()));
+                });
+            }
             mReady = true;
             return *this;
         }
