@@ -29,8 +29,9 @@ namespace aisdi {
         using iterator = Iterator;
         using const_iterator = ConstIterator;
 
-        HashMap(size_type pBuckets = 1000) : mBucketCount(pBuckets), mCount(0) {
+        HashMap(size_type pBuckets = 50) : mBucketCount(pBuckets), mCount(0) {
             mBuckets = new BucketNode* [mBucketCount];
+
             for (size_type i = 0; i < mBucketCount; i++)
                 mBuckets[i] = nullptr;
             mHasher = [](const key_type& pKey) {
@@ -57,7 +58,7 @@ namespace aisdi {
             std::swap(mHasher, other.mHasher);
         }
 
-        ~HashMap(){
+        ~HashMap() {
             clear();
             delete[] mBuckets;
         }
@@ -135,7 +136,8 @@ namespace aisdi {
                 return;
             }
 
-            while (prev != nullptr && prev->mNextNode->mPair.first != key) prev = prev->mNextNode;
+            while (prev && prev->mNextNode && prev->mNextNode->mPair.first != key) prev = prev->mNextNode;
+
             if (prev == nullptr) throw std::out_of_range("Key not found");
             prev->mNextNode = prev->mNextNode->mNextNode;
             mCount--;
@@ -167,7 +169,7 @@ namespace aisdi {
         }
 
         bool operator==(const HashMap& other) const {
-            if (mCount != other.mCount || mBucketCount != other.mBucketCount)
+            if (mCount != other.mCount)
                 return false;
 
             for (size_type i = 0; i < mBucketCount; ++i) {
@@ -196,7 +198,7 @@ namespace aisdi {
         }
 
         iterator end() {
-            return Iterator(*this, mBucketCount, nullptr);
+            return Iterator(*this, mBucketCount - 1, nullptr);
         }
 
         const_iterator cbegin() const {
@@ -204,7 +206,7 @@ namespace aisdi {
         }
 
         const_iterator cend() const {
-            return ConstIterator(*this, mBucketCount, nullptr);
+            return ConstIterator(*this, mBucketCount - 1, nullptr);
         }
 
         const_iterator begin() const {
@@ -219,6 +221,7 @@ namespace aisdi {
         size_type mBucketCount;
         size_type mCount;
         BucketNode** mBuckets;
+
         std::function<size_type(const key_type&)> mHasher;
 
         size_type bucketHash(const key_type& pKey) const {
@@ -261,6 +264,7 @@ namespace aisdi {
                     delete tmp_node;
                     mCount--;
                 }
+                mBuckets[i] = nullptr;
             }
         };
 
@@ -271,11 +275,11 @@ namespace aisdi {
         value_type mPair;
         BucketNode* mNextNode;
 
-        BucketNode(const key_type& pKey) : mPair(std::make_pair(pKey, ValueType{})), mNextNode(nullptr) { }
+        BucketNode(const key_type& pKey) : mPair(std::make_pair(pKey, ValueType{})), mNextNode(nullptr) {}
 
-        BucketNode(const key_type& pKey, mapped_type pData) : mPair(std::make_pair(pKey, pData)), mNextNode(nullptr) { }
+        BucketNode(const key_type& pKey, mapped_type pData) : mPair(std::make_pair(pKey, pData)), mNextNode(nullptr) {}
 
-        BucketNode(value_type pPair) : mPair(pPair), mNextNode(nullptr) { }
+        BucketNode(value_type pPair) : mPair(pPair), mNextNode(nullptr) {}
     };
 
 
@@ -291,22 +295,25 @@ namespace aisdi {
 
         explicit ConstIterator(const HashMap<KeyType, ValueType>& pMap, size_type pBucket, BucketNode* pNode) : mMap(
                 pMap), mBucket(pBucket), mNode(pNode) {
-            while (mNode == nullptr && mBucket != mMap.mBucketCount) {
+
+            while (mNode == nullptr && mBucket < mMap.mBucketCount - 1) {
                 mBucket++;
                 mNode = mMap.mBuckets[mBucket];
             }
         }
 
-        ConstIterator(const ConstIterator& other) : mMap(other.mMap), mBucket(other.mBucket), mNode(other.mNode) { }
+        ConstIterator(const ConstIterator& other) : mMap(other.mMap), mBucket(other.mBucket), mNode(other.mNode) {}
 
         ConstIterator& operator++() {
             if (mNode == nullptr)
                 throw std::out_of_range("Incrementing end iterator");
+
             mNode = mNode->mNextNode;
-            while (mNode == nullptr && mBucket != mMap.mBucketCount) {
+            while (mNode == nullptr && mBucket < mMap.mBucketCount - 1) {
                 mBucket++;
                 mNode = mMap.mBuckets[mBucket];
             }
+
             return *this;
         }
 
@@ -321,8 +328,10 @@ namespace aisdi {
             if (mMap.mBuckets[mBucket] == mNode) {
                 while (mMap.mBuckets[mBucket] == nullptr && mBucket > 0) mBucket--;
                 mNode = mMap.mBuckets[mBucket];
+
                 if (mBucket < 0 || mNode == nullptr)
                     throw std::out_of_range("Decrementing begin iterator");
+
                 while (mNode->mNextNode != nullptr) mNode = mNode->mNextNode;
 
             } else {
@@ -372,9 +381,9 @@ namespace aisdi {
 
 
         explicit Iterator(const HashMap<KeyType, ValueType>& pMap, size_type pBucket, BucketNode* pNode)
-                : ConstIterator(pMap, pBucket, pNode) { }
+                : ConstIterator(pMap, pBucket, pNode) {}
 
-        Iterator(const ConstIterator& other) : ConstIterator(other) { }
+        Iterator(const ConstIterator& other) : ConstIterator(other) {}
 
         Iterator& operator++() {
             ConstIterator::operator++();

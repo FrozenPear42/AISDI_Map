@@ -90,7 +90,7 @@ namespace aisdi {
             TreeNode* node = findNode(key);
             if (node == nullptr)
                 return end();
-            return Iterator(*this, node);
+            return Iterator(*this, node, false);
         }
 
         iterator find(const key_type& key) {
@@ -129,19 +129,19 @@ namespace aisdi {
         }
 
         iterator begin() {
-            return Iterator(*this, mostLeft());
+            return Iterator(*this, mostLeft(), false);
         }
 
         iterator end() {
-            return Iterator(*this, nullptr);
+            return Iterator(*this, nullptr, true);
         }
 
         const_iterator cbegin() const {
-            return ConstIterator(*this, mostLeft());
+            return ConstIterator(*this, mostLeft(), false);
         }
 
         const_iterator cend() const {
-            return ConstIterator(*this, nullptr);
+            return ConstIterator(*this, nullptr, true);
         }
 
         const_iterator begin() const {
@@ -156,10 +156,10 @@ namespace aisdi {
         TreeNode* mRoot;
         size_type mCount;
 
-        iterator insert(value_type pValue) {
+        TreeNode* insert(value_type pValue) {
             TreeNode* node = allocate(pValue.first);
             node->mPair.second = pValue.second;
-            return Iterator(*this, node);
+            return node;
         };
 
         TreeNode* allocate(key_type pKey) {
@@ -175,27 +175,25 @@ namespace aisdi {
 
             while (true) {
                 parent = node;
-
-                if (pKey < node->mPair.first) {
+                // Pobierzmy w lewo
+                if (node->mPair.first > pKey) {
                     node = node->mLeft;
                     if (node == nullptr) {
                         new_node->mParent = parent;
                         parent->mLeft = new_node;
-                        new_node->mHeight = parent->mHeight + 1;
-                        rebalance(parent);
-                        return new_node;
+                        break;
                     }
                 } else {
                     node = node->mRight;
                     if (node == nullptr) {
                         new_node->mParent = parent;
                         parent->mRight = new_node;
-                        new_node->mHeight = parent->mHeight + 1;
-                        rebalance(parent);
-                        return new_node;
+                        break;
                     }
                 }
             }
+            rebalance(parent);
+            return new_node;
         };
 
         void removeNode(KeyType pKey) {
@@ -214,14 +212,13 @@ namespace aisdi {
                     child = n->mRight;
                 else
                     child = n->mLeft;
+
                 if (pKey == n->mPair.first)
                     delNode = n;
             }
 
             if (!delNode)
                 throw std::out_of_range("Removing nonexisting element");
-
-            //delNode->mPair = std::move(n->mPair);
 
             if (n->mLeft)
                 child = n->mLeft;
@@ -235,9 +232,9 @@ namespace aisdi {
                     parent->mLeft = child;
                 else
                     parent->mRight = child;
-
                 rebalance(parent);
             }
+            delete n;
             --mCount;
         }
 
@@ -297,22 +294,24 @@ namespace aisdi {
         }
 
         void rebalance(TreeNode* pRoot) {
-            int balance = getHeight(pRoot->mLeft) - getHeight(pRoot->mRight);
 
-            if (balance == 2) {
-                if (getHeight(pRoot->mLeft->mLeft) >= getHeight(pRoot->mLeft->mRight))
-                    pRoot = rotateRight(pRoot);
-                else
-                    pRoot = rotateLeftRight(pRoot);
+            pRoot->mHeight = 1 + std::max(getHeight(pRoot->mLeft), getHeight(pRoot->mRight));
 
-            } else if (balance == -2) {
-                if (getHeight(pRoot->mRight->mRight) >= getHeight(pRoot->mRight->mLeft))
-                    pRoot = rotateLeft(pRoot);
-                else
-                    pRoot = rotateRightLeft(pRoot);
+            int balance = getHeight(pRoot->mRight) - getHeight(pRoot->mLeft);
+
+            if (balance == -2) {
+                if (getHeight(pRoot->mLeft->mRight) - getHeight(pRoot->mLeft->mLeft) > 0)
+                    pRoot->mLeft = rotateLeft(pRoot->mLeft);
+                rotateRight(pRoot);
+
+            } else if (balance == 2) {
+                if (getHeight(pRoot->mRight->mRight) - getHeight(pRoot->mRight->mLeft) < 0)
+                    pRoot->mRight = rotateRight(pRoot->mRight);
+                rotateLeft(pRoot);
             }
+
             if (pRoot->mParent != nullptr)
-                rebalance(pRoot);
+                rebalance(pRoot->mParent);
             else
                 mRoot = pRoot;
         }
@@ -329,10 +328,10 @@ namespace aisdi {
             pRoot->mParent = x;
 
             if (x->mParent != nullptr) {
-                if (x->mParent->mRight == pRoot)
-                    x->mParent->mRight = x;
-                else
+                if (x->mParent->mLeft == pRoot)
                     x->mParent->mLeft = x;
+                else
+                    x->mParent->mRight = x;
             }
             pRoot->mHeight = std::max(getHeight(pRoot->mLeft), getHeight(pRoot->mRight)) + 1;
             x->mHeight = std::max(getHeight(x->mLeft), getHeight(x->mRight)) + 1;
@@ -364,19 +363,9 @@ namespace aisdi {
             return x;
         }
 
-        TreeNode* rotateLeftRight(TreeNode* pRoot) {
-            pRoot->mLeft = rotateLeft(pRoot->mLeft);
-            return rotateRight(pRoot);
-        }
-
-        TreeNode* rotateRightLeft(TreeNode* pRoot) {
-            pRoot->mRight = rotateRight(pRoot->mRight);
-            return rotateLeft(pRoot);
-        }
-
         inline int getHeight(const TreeNode* pRoot) const {
             if (!pRoot)
-                return 0;
+                return -1;
             return pRoot->mHeight;
         }
     };
@@ -390,9 +379,9 @@ namespace aisdi {
         int mHeight;
 
         TreeNode() : mPair(std::make_pair(KeyType(), ValueType())), mParent(nullptr), mLeft(nullptr), mRight(nullptr),
-                     mHeight(1) {}
+                     mHeight(0) {}
 
-        TreeNode(value_type pPair) : mPair(pPair), mParent(nullptr), mLeft(nullptr), mRight(nullptr), mHeight(1) {}
+        TreeNode(value_type pPair) : mPair(pPair), mParent(nullptr), mLeft(nullptr), mRight(nullptr), mHeight(0) {}
     };
 
     template<typename KeyType, typename ValueType>
@@ -405,10 +394,10 @@ namespace aisdi {
 
         friend class TreeMap;
 
-        explicit ConstIterator(const TreeMap& pMap, TreeNode* pNode) : mMap(pMap),
-                                                                       mNode(pNode) {}
+        explicit ConstIterator(const TreeMap& pMap, TreeNode* pNode, bool pEnd) : mMap(pMap), mNode(pNode),
+                                                                                  mEnd(pEnd) {}
 
-        ConstIterator(const ConstIterator& other) : ConstIterator(other.mMap, other.mNode) {}
+        ConstIterator(const ConstIterator& other) : ConstIterator(other.mMap, other.mNode, other.mEnd) {}
 
         ConstIterator& operator++() {
             if (mNode == nullptr)
@@ -420,6 +409,8 @@ namespace aisdi {
             } else {
                 while (mNode->mParent && mNode->mParent->mRight == mNode) mNode = mNode->mParent;
                 mNode = mNode->mParent;
+                if (mNode == nullptr)
+                    mEnd = true;
             }
             return *this;
         }
@@ -431,9 +422,14 @@ namespace aisdi {
         }
 
         ConstIterator& operator--() {
-            if (mNode == nullptr)
-                throw std::out_of_range("Eh, what are you doing, decrementing begin iterator?");
-
+            if (mNode == nullptr) {
+                if (!mEnd) {
+                    throw std::out_of_range("Eh, what are you doing, decrementing begin iterator?");
+                } else {
+                    mNode = mMap.mostRight();
+                    return *this;
+                }
+            }
             if (mNode->mLeft) {
                 mNode = mNode->mRight;
                 while (mNode->mRight) mNode = mNode->mRight;
@@ -471,6 +467,7 @@ namespace aisdi {
     private:
         const TreeMap& mMap;
         TreeNode* mNode;
+        bool mEnd;
     };
 
     template<typename KeyType, typename ValueType>
@@ -479,7 +476,7 @@ namespace aisdi {
         using reference = typename TreeMap::reference;
         using pointer = typename TreeMap::value_type*;
 
-        explicit Iterator(const TreeMap& pMap, TreeNode* pNode) : ConstIterator(pMap, pNode) {}
+        explicit Iterator(const TreeMap& pMap, TreeNode* pNode, bool pEnd) : ConstIterator(pMap, pNode, pEnd) {}
 
         Iterator(const ConstIterator& other)
                 : ConstIterator(other) {}
