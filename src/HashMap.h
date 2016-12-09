@@ -29,7 +29,7 @@ namespace aisdi {
         using iterator = Iterator;
         using const_iterator = ConstIterator;
 
-        HashMap() : mBucketCount(1000), mCount(0) {
+        HashMap(size_type pBuckets = 1000) : mBucketCount(pBuckets), mCount(0) {
             mBuckets = new BucketNode* [mBucketCount];
             for (size_type i = 0; i < mBucketCount; i++)
                 mBuckets[i] = nullptr;
