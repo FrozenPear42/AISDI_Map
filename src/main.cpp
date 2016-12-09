@@ -8,6 +8,18 @@
 
 
 template<class Collection>
+void Iterate(int n) {
+    Collection map;
+    std::mt19937 device;
+    std::uniform_int_distribution<int> distribution(0, n);
+    for (int i = 0; i < n; ++i) {
+        map[distribution(device)] = i;
+    }
+
+
+}
+
+template<class Collection>
 void randomInsert(int n) {
     Collection map;
     std::mt19937 device;
@@ -35,13 +47,38 @@ int main(int argc, char** argv) {
     auto cases = {1000, 2000, 5000, 8000, 10000, 20000, 50000, 80000, 100000, 200000,
                   500000, 800000, 1000000};
 
-    bm::BenchmarkSuite("Random Insert")
+    bm::BenchmarkSuite("RandomInsert")
             .addBenchmark(bm::Benchmark("HashMap", randomInsert<aisdi::HashMap<int, int>>, cases))
             .addBenchmark(bm::Benchmark("TreeMap", randomInsert<aisdi::TreeMap<int, int>>, cases))
             .run([&](std::pair<const int, double> pPair, int percent) {
                 std::cout << "Done " << percent <<"% -> " << pPair.first << " in " << pPair.second << "\n";
             })
             .exportCSVFile();
+
+
+    bm::BenchmarkSuite("RandomBuckets")
+            .addBenchmark(bm::Benchmark("HashMap - 10", randomInsertBuckets<10>, cases))
+            .addBenchmark(bm::Benchmark("HashMap - 100", randomInsertBuckets<100>, cases))
+            .addBenchmark(bm::Benchmark("HashMap - 500", randomInsertBuckets<500>, cases))
+            .addBenchmark(bm::Benchmark("HashMap - 1000", randomInsertBuckets<1000>, cases))
+            .addBenchmark(bm::Benchmark("TreeMap", randomInsert<aisdi::TreeMap<int, int>>, cases))
+            .run([&](std::pair<const int, double> pPair, int percent) {
+                std::cout << "Done " << percent <<"% -> " << pPair.first << " in " << pPair.second << "\n";
+            })
+            .exportCSVFile();
+
+
+    bm::BenchmarkSuite("RandomHugeBuckets")
+            .addBenchmark(bm::Benchmark("HashMap - 1000", randomInsertBuckets<1000>, cases))
+            .addBenchmark(bm::Benchmark("HashMap - 2000", randomInsertBuckets<2000>, cases))
+            .addBenchmark(bm::Benchmark("HashMap - 5000", randomInsertBuckets<5000>, cases))
+            .addBenchmark(bm::Benchmark("HashMap - 10000", randomInsertBuckets<10000>, cases))
+            .addBenchmark(bm::Benchmark("TreeMap", randomInsert<aisdi::TreeMap<int, int>>, cases))
+            .run([&](std::pair<const int, double> pPair, int percent) {
+                std::cout << "Done " << percent <<"% -> " << pPair.first << " in " << pPair.second << "\n";
+            })
+            .exportCSVFile();
+
 
     bm::BenchmarkSuite("Buckets")
             .addBenchmark(bm::Benchmark("100 Buckets", randomInsertBuckets<100>, cases))

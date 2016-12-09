@@ -44,6 +44,10 @@ namespace aisdi {
             std::swap(mCount, other.mCount);
         }
 
+        ~TreeMap() {
+            clear(mRoot);
+        }
+
         TreeMap& operator=(const TreeMap& other) {
             if (*this == other)
                 return *this;
